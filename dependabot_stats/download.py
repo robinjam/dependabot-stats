@@ -1,6 +1,7 @@
 from collections import namedtuple
 import csv
 import os
+import time
 
 from github import Github
 
@@ -13,19 +14,20 @@ github = Github(os.environ['GITHUB_TOKEN'], per_page=100)
 
 def download_repos(user, topic):
     query = f'user:{user} topic:{topic} archived:false'
-    return [repo.full_name for repo in github.search_repositories(query=query)]
+    return sorted(repo.full_name for repo in github.search_repositories(query=query))
 
 
 def download_pull_requests(user, repos):
-    for repo in repos:
-        print('Downloading:', repo)
+    for i, repo in enumerate(repos):
+        print('Downloading:', repo, f'{i}/{len(repos)}')
 
         query = f'repo:{repo} author:app/dependabot author:app/dependabot-preview is:pr is:merged'
 
         for issue in github.search_issues(query=query):
-            pull_request = issue.as_pull_request()
-            is_security = any(label.name == 'security' for label in pull_request.labels)
-            yield PullRequest(issue.repository.name, pull_request.created_at, pull_request.closed_at, is_security)
+            is_security = any(label.name == 'security' for label in issue.labels)
+            yield PullRequest(repo, issue.created_at, issue.closed_at, is_security)
+
+        time.sleep(1)  # for GitHub Search API rate limiting
 
 
 def write_pull_requests(pull_requests, filename):
