@@ -12,20 +12,20 @@ github = Github(os.environ['GITHUB_TOKEN'], per_page=100)
 
 
 def download_repos(user, topic):
-    query = f'user:{user} topic:{topic}'
-    return [repo.name for repo in github.search_repositories(query=query)]
+    query = f'user:{user} topic:{topic} archived:false'
+    return [repo.full_name for repo in github.search_repositories(query=query)]
 
 
 def download_pull_requests(user, repos):
-    query = f'user:{user} author:app/dependabot author:app/dependabot-preview is:pr is:merged archived:false'
+    for repo in repos:
+        print('Downloading:', repo)
 
-    for issue in github.search_issues(query=query):
-        if issue.repository.name not in repos:
-            continue
+        query = f'repo:{repo} author:app/dependabot author:app/dependabot-preview is:pr is:merged'
 
-        pull_request = issue.as_pull_request()
-        is_security = any(label.name == 'security' for label in pull_request.labels)
-        yield PullRequest(issue.repository.name, pull_request.created_at, pull_request.closed_at, is_security)
+        for issue in github.search_issues(query=query):
+            pull_request = issue.as_pull_request()
+            is_security = any(label.name == 'security' for label in pull_request.labels)
+            yield PullRequest(issue.repository.name, pull_request.created_at, pull_request.closed_at, is_security)
 
 
 def write_pull_requests(pull_requests, filename):
@@ -56,5 +56,7 @@ if __name__ == '__main__':
     print(github.get_rate_limit())
 
     repos = download_repos(args.user, args.topic)
+    print(len(repos), 'repos to download')
+
     pull_requests = download_pull_requests(args.user, repos)
     write_pull_requests(pull_requests, args.output)
