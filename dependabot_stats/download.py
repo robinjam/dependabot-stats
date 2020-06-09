@@ -7,7 +7,7 @@ from github import Github
 
 PullRequest = namedtuple('PullRequest', ['repo', 'opened_at', 'closed_at', 'is_security'])
 
-github = Github(os.environ['GITHUB_TOKEN'])
+github = Github(os.environ['GITHUB_TOKEN'], per_page=100)
 
 
 
@@ -17,7 +17,7 @@ def download_repos(user, topic):
 
 
 def download_pull_requests(user, repos):
-    query = f'user:{user} author:app/dependabot author:app/dependabot-preview is:pr is:closed'
+    query = f'user:{user} author:app/dependabot author:app/dependabot-preview is:pr is:merged archived:false'
 
     for issue in github.search_issues(query=query):
         if issue.repository.name not in repos:
@@ -28,7 +28,7 @@ def download_pull_requests(user, repos):
         yield PullRequest(issue.repository.name, pull_request.created_at, pull_request.closed_at, is_security)
 
 
-def write_results(pull_requests, filename):
+def write_pull_requests(pull_requests, filename):
     with open(filename, 'w', newline='') as file:
         writer = csv.DictWriter(file, fieldnames=['repo', 'opened_at', 'closed_at', 'is_security'])
 
@@ -53,6 +53,8 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
+    print(github.get_rate_limit())
+
     repos = download_repos(args.user, args.topic)
     pull_requests = download_pull_requests(args.user, repos)
-    write_results(pull_requests, args.output)
+    write_pull_requests(pull_requests, args.output)
