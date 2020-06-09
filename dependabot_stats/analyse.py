@@ -24,10 +24,13 @@ def read_pull_requests(filename, ignore_libraries=[]):
         return [parse_row(row) for row in reader if parse_row(row)]
 
 
-def print_stats(pull_requests):
+def print_basic_pr_stats(pull_requests):
+    print('Total PRs:', len(pull_requests))
     print('Mean time to merge:', sum([pr.duration for pr in pull_requests], timedelta()) / len(pull_requests))
     print('Max time to merge:', max([pr.duration for pr in pull_requests]))
 
+
+def print_pr_stats(pull_requests):
     prs_grouped_by_library = {
         library: list(prs)
         for library, prs in groupby(pull_requests, key=lambda pr: pr.library)
@@ -47,8 +50,54 @@ def print_stats(pull_requests):
         for library, duration in libraries_ordered_by_mean_duration.items()
     ]
 
+    print_basic_pr_stats(pull_requests)
     print('Top 5 longest libraries to merge:', ', '.join(libraries_with_duration[:5]))
     print('Top 5 quickest libraries to merge:', ', '.join(libraries_with_duration[-5:]))
+
+
+def print_all_pr_stats(pull_requests):
+    print('All PRs')
+    print('=======')
+    print_pr_stats(pull_requests)
+    print()
+
+    print('Security PRs')
+    print('============')
+    print_pr_stats([pr for pr in pull_requests if pr.is_security])
+    print()
+
+    print('Non-security PRs')
+    print('================')
+    print_pr_stats([pr for pr in pull_requests if not pr.is_security])
+
+
+def print_library_stats(pull_requests, internal_libraries, framework_libraries):
+    security_prs = [pr for pr in pull_requests if pr.is_security]
+    internal_prs = [pr for pr in pull_requests if pr.library in internal_libraries]
+    framework_prs = [pr for pr in pull_requests if pr.library in framework_libraries]
+    other_prs = [
+        pr for pr in pull_requests
+        if not pr.is_security and not pr.library in internal_libraries and not pr.library in framework_libraries
+    ]
+
+    print('Security Libraries')
+    print('==================')
+    print_pr_stats(security_prs)
+    print()
+
+    print('Internal Libraries')
+    print('==================')
+    print_pr_stats(internal_prs)
+    print()
+
+    print('Framework Libraries')
+    print('===================')
+    print_pr_stats(framework_prs)
+    print()
+
+    print('Other Libraries')
+    print('===============')
+    print_pr_stats(other_prs)
 
 
 if __name__ == '__main__':
@@ -56,22 +105,24 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--input', default='data.csv')
-    parser.add_argument('--ignore-library', '-l', nargs='*')
+    parser.add_argument('--ignore-library', '-l', nargs='*', default=['urllib3', 'notebook'])
+
+    subparsers = parser.add_subparsers()
+    parser_prs = subparsers.add_parser('prs')
+    parser_prs.set_defaults(func=print_all_pr_stats)
+
+    parser_libraries = subparsers.add_parser('libraries')
+    parser_libraries.add_argument('--internal-libraries', '-i', nargs='*', default=['gds-api-adapters', 'gds-sso', 'govspeak', 'govuk_app_config', 'govuk_publishing_components', 'govuk_schemas', 'govuk_sidekiq', 'govuk_test', 'rubocop-govuk', 'plek', 'scss_lint-govuk'])
+    parser_libraries.add_argument('--framework-libraries', '-f', nargs='*', default=['factory_bot_rails', 'jasmine', 'rails', 'rspec-rails', 'sass-rails'])
+    parser_libraries.set_defaults(func=print_library_stats)
 
     args = parser.parse_args()
 
-    pull_requests = read_pull_requests(args.input, ignore_libraries=args.ignore_library)
-
-    print('All PRs')
-    print('=======')
-    print_stats(pull_requests)
-    print()
-
-    print('Security PRs')
-    print('============')
-    print_stats([pr for pr in pull_requests if pr.is_security])
-    print()
-
-    print('Non-security PRs')
-    print('================')
-    print_stats([pr for pr in pull_requests if not pr.is_security])
+    if 'func' in args:
+        pull_requests = read_pull_requests(args.input, ignore_libraries=args.ignore_library)
+        if args.func == print_all_pr_stats:
+            print_all_pr_stats(pull_requests)
+        elif args.func == print_library_stats:
+            print_library_stats(pull_requests, args.internal_libraries, args.framework_libraries)
+    else:
+        parser.print_help()
