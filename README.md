@@ -7,3 +7,9 @@ Gathering statistics on Dependabot usage.
 ```sh
 $ poetry run python -m dependabot_stats.download
 ```
+
+## Analyse
+
+```sh
+$ poetry run python -m dependabot_stats.analyse
+```
