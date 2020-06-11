@@ -95,8 +95,18 @@ def print_library_stats(pull_requests, internal_libraries, framework_libraries):
     print_pr_stats(framework_prs)
     print()
 
-    print('Other Libraries')
-    print('===============')
+    print('Third Party Libraries (Framework + Ignored)')
+    print('===========================================')
+    print_pr_stats(framework_prs + other_prs)
+    print()
+
+    print('All Allowed Libraries (Security + Internal + Framework)')
+    print('=======================================================')
+    print_pr_stats(security_prs + internal_prs + framework_prs)
+    print()
+
+    print('Ignored Libraries')
+    print('=================')
     print_pr_stats(other_prs)
 
 
