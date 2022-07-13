@@ -17,9 +17,8 @@ def extract_library_name(title)
   end
 end
 
-# Rewrites x-ratelimit headers to remove the x- prefix
-# Faraday::Retry::Middleware will read these headers and automatically wait
-# until the rate limit expires before retrying
+# Rewrites X-RateLimit headers so that the Faraday::Retry::Middleware can read them and
+# automatically wait until the rate limit expires before retrying
 class RewriteRateLimitHeaders < Faraday::Middleware
   def initialize(app)
     super(app)
@@ -29,11 +28,20 @@ class RewriteRateLimitHeaders < Faraday::Middleware
   def call(request_env)
     @app.call(request_env).on_complete do |response_env|
       headers = response_env[:response_headers]
-      headers.keys.each do |key|
-        headers[key.gsub(/\A[Xx]-/, '')] = headers[key] if key.downcase.start_with? "x-ratelimit"
+      if headers.include? 'X-RateLimit-Limit'
+        headers['RateLimit-Limit'] = headers['X-RateLimit-Limit']
       end
-      if headers.has_key?('x-ratelimit-reset') && headers['x-ratelimit-remaining'] == "0"
-        STDERR.puts "Warning: Rate limited until #{Time.at(headers['x-ratelimit-reset'].to_i)}"
+      if headers.include? 'X-RateLimit-Remaining'
+        headers['RateLimit-Remaining'] = headers['X-RateLimit-Remaining']
+      end
+      if headers.include? 'X-RateLimit-Reset'
+        # X-RateLimit-Reset is a timestamp (i.e. the number of seconds since epoch)
+        # RateLimit-Reset is expected to be in RFC2822 format
+        limit_expires_at = headers['RateLimit-Reset'] = Time.at(headers['X-RateLimit-Reset'].to_i).rfc2822
+
+        if headers['RateLimit-Remaining'] == '0'
+          STDERR.puts "Warning: Rate limited until #{limit_expires_at}"
+        end
       end
     end
   end
