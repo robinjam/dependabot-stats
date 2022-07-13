@@ -32,7 +32,9 @@ class RewriteRateLimitHeaders < Faraday::Middleware
       headers.keys.each do |key|
         headers[key.gsub(/\A[Xx]-/, '')] = headers[key] if key.downcase.start_with? "x-ratelimit"
       end
-      p headers['x-ratelimit-remaining']
+      if headers.has_key?('x-ratelimit-reset') && headers['x-ratelimit-remaining'] == "0"
+        STDERR.puts "Warning: Rate limited until #{Time.at(headers['x-ratelimit-reset'].to_i)}"
+      end
     end
   end
 end
