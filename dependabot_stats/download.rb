@@ -4,7 +4,7 @@ require "octokit"
 def extract_library_name(title)
   if title == "Upgrade to GitHub-native Dependabot"
     nil
-  elsif /\AUpdate .+ requirement from .+ to .+\z/.match?(title)
+  elsif /Update .+ requirement from .+ to .+\z/.match?(title)
     nil
   elsif matches = /[Bb]ump (.+) from .+ to .+\z/.match(title)
     matches[1]
