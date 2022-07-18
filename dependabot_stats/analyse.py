@@ -2,6 +2,7 @@ from collections import namedtuple
 import csv
 from datetime import datetime, timedelta
 from itertools import groupby
+import urllib.request, json
 
 
 PullRequest = namedtuple('PullRequest', ['repo', 'library', 'opened_at', 'closed_at', 'duration', 'is_security'])
@@ -109,6 +110,10 @@ def print_library_stats(pull_requests, internal_libraries, framework_libraries):
     print('=================')
     print_pr_stats(other_prs)
 
+def fetch_govuk_repos():
+    with urllib.request.urlopen("https://docs.publishing.service.gov.uk/repos.json") as connection:
+        return json.loads(connection.read().decode())
+
 
 if __name__ == '__main__':
     import argparse
@@ -122,7 +127,7 @@ if __name__ == '__main__':
     parser_prs.set_defaults(func=print_all_pr_stats)
 
     parser_libraries = subparsers.add_parser('libraries')
-    parser_libraries.add_argument('--internal-libraries', '-i', nargs='*', default=['gds-api-adapters', 'gds-sso', 'govspeak', 'govuk_app_config', 'govuk_publishing_components', 'govuk_schemas', 'govuk_sidekiq', 'govuk_test', 'rubocop-govuk', 'plek', 'scss_lint-govuk'])
+    parser_libraries.add_argument('--internal-libraries', '-i', nargs='*', default=[repo['app_name'] for repo in fetch_govuk_repos()])
     parser_libraries.add_argument('--framework-libraries', '-f', nargs='*', default=['factory_bot_rails', 'jasmine', 'rails', 'rspec-rails', 'sass-rails'])
     parser_libraries.set_defaults(func=print_library_stats)
 
