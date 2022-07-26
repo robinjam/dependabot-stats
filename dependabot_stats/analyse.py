@@ -112,7 +112,7 @@ def print_library_stats(pull_requests, internal_libraries, framework_libraries):
 
 def fetch_govuk_repos():
     with urllib.request.urlopen("https://docs.publishing.service.gov.uk/repos.json") as connection:
-        return json.loads(connection.read().decode())
+        return json.load(connection)
 
 
 if __name__ == '__main__':
