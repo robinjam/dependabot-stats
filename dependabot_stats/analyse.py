@@ -1,6 +1,6 @@
 from collections import namedtuple
 import csv
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from itertools import groupby
 import dateutil.parser
 import urllib.request, json
@@ -17,6 +17,9 @@ def read_pull_requests(filename, ignore_libraries=[]):
 
         opened_at = dateutil.parser.isoparse(row['opened_at'])
         closed_at = dateutil.parser.isoparse(row['closed_at'])
+        if opened_at < datetime(2020, 6, 11, tzinfo=timezone.utc):
+            # Ignore PRs opened before RFC 126 was published
+            return
         duration = closed_at - opened_at
         is_security = row['is_security'] == 'true'
         return PullRequest(row['repo'], row['library'], opened_at, closed_at, duration, is_security)
