@@ -2,6 +2,7 @@ from collections import namedtuple
 import csv
 from datetime import datetime, timedelta
 from itertools import groupby
+import dateutil.parser
 import urllib.request, json
 
 
@@ -14,8 +15,8 @@ def read_pull_requests(filename, ignore_libraries=[]):
         if library in ignore_libraries:
             return
 
-        opened_at = datetime.fromisoformat(row['opened_at'])
-        closed_at = datetime.fromisoformat(row['closed_at'])
+        opened_at = dateutil.parser.isoparse(row['opened_at'])
+        closed_at = dateutil.parser.isoparse(row['closed_at'])
         duration = closed_at - opened_at
         is_security = row['is_security'] == 'true'
         return PullRequest(row['repo'], row['library'], opened_at, closed_at, duration, is_security)
