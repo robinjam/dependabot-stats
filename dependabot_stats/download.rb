@@ -1,3 +1,4 @@
+require "active_support/all"
 require "csv"
 require "octokit"
 
@@ -14,6 +15,34 @@ def extract_library_name(title)
   else
     STDERR.puts "Warning: Could not extract library name(s) from pull request title \"#{title}\""
     nil
+  end
+end
+
+def extract_library_versions(title)
+  if matches = /[Bb]ump .+ from ([^ ]+) to ([^ ]+)/.match(title)
+    [matches[1], matches[2]]
+  else
+    ["", ""]
+  end
+end
+
+def determine_update_type(old_version, new_version)
+  if old_version.present? && new_version.present?
+    old_version_parts = old_version.split "."
+    new_version_parts = new_version.split "."
+    begin
+      if Integer(new_version_parts[0]) > Integer(old_version_parts[0])
+        "major"
+      elsif Integer(new_version_parts[1]) > Integer(old_version_parts[1])
+        "minor"
+      else
+        "patch"
+      end
+    rescue ArgumentError
+      "unknown"
+    end
+  else
+    "unknown"
   end
 end
 
@@ -64,7 +93,7 @@ client = Octokit::Client.new access_token: ENV['GITHUB_TOKEN'], auto_paginate: t
 # 2. Will only return up to 1,000 results
 
 CSV.open "data.csv", "wb" do |csv|
-  csv << ["repo", "library", "opened_at", "closed_at", "is_security"]
+  csv << ["repo", "library", "opened_at", "closed_at", "is_security", "old_version", "new_version", "update_type", "url"]
   puts "Fetching repository list..."
   repos = client.org_repos("alphagov").reject(&:archived?).filter { |r| r.topics.include? "govuk" }
   repos.each.with_index(1) do |repo, i|
@@ -72,8 +101,11 @@ CSV.open "data.csv", "wb" do |csv|
     client.pull_requests(repo.full_name, state: :closed).filter { |p| p.user.login.include?("dependabot") && p.merged_at? }.each do |pull|
       is_security = pull.labels.map(&:name).include? "security"
       if library = extract_library_name(pull.title)
-        csv << [repo.full_name, library, pull.created_at.iso8601, pull.closed_at.iso8601, is_security]
+        old_version, new_version = extract_library_versions(pull.title)
+        update_type = determine_update_type(old_version, new_version)
+        csv << [repo.full_name, library, pull.created_at.iso8601, pull.closed_at.iso8601, is_security, old_version, new_version, update_type, pull.html_url]
       end
     end
+    csv.flush
   end
 end
